@@ -1,5 +1,6 @@
 package org.lab.orderservice.controller;
 
+import org.lab.orderservice.configuration.OrderEvent;
 import org.lab.orderservice.entities.Orders;
 import org.lab.orderservice.repository.IOrderRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -17,18 +18,22 @@ public class OrderController {
     private IOrderRepository orderRepository;
 
     @Autowired
-    private KafkaTemplate<String, String> kafkaTemplate;
-
+    private KafkaTemplate<String, OrderEvent> kafkaTemplate;
     private static final String TOPIC = "order-events-2";
 
     @PostMapping("/addOrder")
     public Orders createOrder(@RequestBody Orders orders) {
         orders.setStatus("CREATED");
         Orders savedOrders = orderRepository.save(orders);
-        // send orders to Kafka
-        String message = savedOrders.getIdOrder() + "," + savedOrders.getIdProduct() + "," + savedOrders.getQuantity();
-        kafkaTemplate.send(TOPIC, message);
 
+        OrderEvent event = new OrderEvent(
+                savedOrders.getIdOrder(),
+                savedOrders.getIdProduct(),
+                savedOrders.getQuantity()
+        );
+        kafkaTemplate.send(TOPIC, event);
         return savedOrders;
+
+
     }
 }
